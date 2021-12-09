@@ -2,6 +2,9 @@
 
 \usepackage[left=1.25in,top=1.25in,right=1.25in,bottom=1.25in,head=1.25in]{geometry}
 \usepackage{amsfonts,amsmath,amssymb,amsthm}
+\usepackage{graphicx, hyperref}
+\usepackage{float}
+
 
 \title{Summary and discussion of: ``Confidence Intervals for Random Forests: The Jackknife and the Infinitesimal Jackknife'' \\
 %% replace wih paper title 
@@ -71,9 +74,10 @@ This paper consider two basic estimates of $V(\cdot)$:
 \end{enumerate}
 
 In practice, we can only ever work with a finite number B of bootstrap replicates. The natural Monte Carlo approximations to the estimators introduced above are
-$$
+\begin{equation}
+\label{eq:VIJ-Monte}
 \widehat{V}_{I J}^{B}=\sum_{i=1}^{n} \widehat{\operatorname{Cov}}_{i}^{2} \text { with } \widehat{\operatorname{Cov}}_{i}=\frac{\sum_{b}\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)}{B},
-$$
+\end{equation}
 and
 \begin{align*}
 \widehat{V}_{J}^{B}=\frac{n-1}{n} \sum_{i=1}^{n} \hat{\Delta}_{i}^{2}, 
@@ -104,21 +108,84 @@ Thus this bias can be approximated as \begin{align*}
 	\mathbb{E}_{*}\left[\widehat{V}_{I J}^{B}\right]-\widehat{V}_{I J}^{\infty}\approx \frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}.
 \end{align*}
 Thus we have the bias-correction version
-\begin{align*}
-&\widehat{V}_{I J-U}^{B}=\widehat{V}_{I J}^{B}-\frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}, 
-\end{align*}
+\begin{equation}
+	\label{eq:bias-correction-IJ}
+\widehat{V}_{I J-U}^{B}=\widehat{V}_{I J}^{B}-\frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}, 
+\end{equation}
 and 
-\begin{align*}
-&\widehat{V}_{J-U}^{B}=\widehat{V}_{J}^{B}-(e-1) \frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}.
-\end{align*}
+\begin{equation}
+	\label{eq:bias-correction-J}
+\widehat{V}_{J-U}^{B}=\widehat{V}_{J}^{B}-(e-1) \frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}.
+\end{equation}
 		
+\subsection{Upward Bias and Downward Bias}
 
 \section{Result and Discussion}
+\subsection{Empirical Bayesian}
+I learnt \href{https://github.com/swager/randomForestCI}{Stefan Wager's randomForestCI} and \href{https://github.com/scikit-learn-contrib/forest-confidence-interval}{sklearn's randomForestCI} and wrote my own code.
+Stefan Wager's code is for R while sklearn's is based on python. 
+However, neither of them implemented Jacknife-after-Bootstrap estimator.
 
-Simulation and read data examples
+\subsection{Figure 2}
+In the first experiment I testing the performance of my version of the bias-corrected infinitesimal jackknife estimate of variance for bagged predictors, defined in~\ref{eq:bias-correction-IJ}, on the simulation data.
+The experiment setup is the same as described in the paper while here I only outline some points.
+The data is generaed via $y=f(x)+\epsilon$ where $\epsilon$ is a Gaussian noise and 
+\begin{equation}
+	f(x)=\left\{
+	\begin{aligned}
+	&14 \quad 0.45 \le x\le 0.55\\
+	&7 \quad 0.35 \le x\le 0.65\\
+	&0 \quad 0\le x\le 1.
+	\end{aligned}
+	\right
+	.
+\end{equation}
+There is a jump of level 7 at four discontinuous points, 0.35, 0.45, 0.55 and 0.65. 
+Thus the ideal variance estimator should capture them.
+As we can see, Figure~\ref{lab:figeure2_IJ} shows that the infinitesimal jackknife estimator of the bagging predictors does achieve it.
+However, in Figure~\ref{lab:figeure2_J} my version of Jacknife-after-Bootstrap estimator although react to the discontinuous points but fail to capture the true variance.
 
+Before we start to present other experiments, note that both in the originl code by Stefan Wager and sklearn's implementation, the bias-corrected infinitesimal jackknife estimate in~\eqref{eq:bias-correction-IJ} is not directly used.
+Instead, Wager conducted empirical Bayes calibration for the infinitesimal jackknife estimate using the g-modeling in \cite{efron2014two}.
+Without such a empirical Bayes calibration, most of the elements in the  infinitesimal jackknife estimate will be negative in my implementation.
+\begin{figure}[htbp]
+	\centering
+	\begin{minipage}{.5\textwidth}
+	\label{lab:figeure2_J}
+	\includegraphics[width=1\textwidth]{../figures/figure2_J.pdf}
+	\caption{Jacknife-after-Bootstrap}
+	\end{minipage}%
+	\begin{minipage}{0.5\textwidth}
+	\label{lab:figeure2_IJ}
+	\centering	
+	\includegraphics[width=1\textwidth]{../figures/figure2_IJ.pdf}
+	\caption{Infinitesimal Jackknife}
+	\end{minipage}
+\end{figure}
 
-discuss what you find to be interest or important here
+\subsection{Figure 3}
+In this experiment, I test the advantage of bias-correction version against.
+I test their performance on the cholesterol dataset \cite{efron1991compliance}.
+I closely follow the experiment setup in \cite{efron2012model}.
+For completeness I outline some key ingredients here.
+I use the bagging polyregression and the choice of degree follows $C_p$ criterior \cite{mallows2000some}, i.e., for polyregression regression with degree $m$, the $C_p$ value is defined as
+\begin{align*}
+	C_{p}(m)=\left\|\boldsymbol{y}-X_{m} \hat{\beta}_{m}\right\|^{2}+2 \sigma^{2} m,
+\end{align*}
+where $X_m$ is the design matrix with polynomial factors whose degree at most $m$ and 
+$$
+\hat{\beta}_m = \operatornamewithlimits{argmin}_{\hat{\beta}}\left\|\boldsymbol{y}-X_{m} \hat{\beta}\right\|^{2}.
+$$
+Follows the setup in \cite{efron2012model}, we use the value $\sigma=22$ in this experiments.
+We use the best degree for each bootstrap sample for the final regression model and apply the infinite Jackknife \ref{eq:VIJ-Monte} and bias-correction version \ref{eq:bias-correction-IJ}.
+As we can see in Figure~\ref{fig:figure_3}, the bias-correction version (on the right column) is significantly lower than the biased one.
+Moreover, as the bootstrap sample sizes increase, the Monte Carlo error decreases which leads to the closer performance between biased IJ and bias-correction one.
+\begin{figure}[htbp]
+	\label{fig:figure_3}
+	\centering
+	\includegraphics[width=0.8\textwidth]{../figures/figure_3.pdf}
+\end{figure}
+
 
 \section{Conclusion}
 

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import copy
+from math import exp
 import functools
 import itertools
 import numpy as np
