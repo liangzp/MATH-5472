@@ -119,10 +119,39 @@ and
 \end{equation}
 		
 \subsection{Upward Bias and Downward Bias}
+Suppose that we have data $Z_1, \cdots, Z_n$ drawn independently from a distribution $F$, and compute the estimate $\hat{\theta}^{\infty}$ from the data as in~\ref{eq:bagged-version}.
+Then using the ANOVA decomposition \cite{efron1981jackknife} we know
+\begin{equation}
+	\label{eq:ANOVA}
+	\operatorname{Var}_{F}\left[\hat{\theta}^{\infty}\right]=V_{1}+V_{2}+\ldots+V_{n},
+\end{equation}
+where $V_k$ are all non-negative.
+
+\cite{efron1981jackknife} also show that, under general condition, the Jacknife estimator of variance is biased upward. To be specific, the Jackknife estimator for the $n+1$-th data point has the variance 
+\begin{equation}
+	\label{eq:JN-variance}
+	\mathbb{E}_{F}\left[\widehat{V}_{J}^{\infty}\right]=V_{1}+2 V_{2}+3 V_{3}+\ldots+n V_{n}.
+\end{equation}
+
+However, as pointed out by \cite{IJ, efron2012model}, $\hat{V}_{IJ}^{\infty}$ is equivalent to the vaience of a "bootstrap Hájek projection", i.e.,
+\begin{equation}
+	\label{eq:IJ-varianc-prepare}
+	\widehat{V}_{I J}^{\infty} \approx \sum_{i=1}^{n} h_{F}^{2}\left(Z_{i}\right)
+\end{equation}
+where $h_{F}(Z)=\mathbb{E}_{F}\left[\hat{\theta}^{\infty} \mid Z_{1}=Z\right]-\mathbb{E}_{F}\left[\hat{\theta}^{\infty}
+\right]$.
+\eqref{eq:IJ-varianc-prepare} suggests that 
+\begin{equation}
+	\label{eq:IJ-variance}
+	\mathbb{E}_{F}\left[\widehat{V}_{I J}^{\infty}\right] \approx V_{1}.
+\end{equation}
+Compare \eqref{eq:ANOVA}, \eqref{eq:JN-variance} and \eqref{eq:IJ-variance} we can conclude that Jackknife estimator has a upward bias by double the second-order term, triple the third-term and so on while Infinite Jackknife estimator has a downward bias by dropping higher-order terms.
+Thus this paper suggests to use the the arithmetic mean of $\widehat{V}_{J}^{\infty}$ and $\widehat{V}_{IJ}^{\infty}$.
 
 \section{Result and Discussion}
-\subsection{Empirical Bayesian}
+\subsection{Empirical Bayes Calibration}
 I learnt \href{https://github.com/swager/randomForestCI}{Stefan Wager's randomForestCI} and \href{https://github.com/scikit-learn-contrib/forest-confidence-interval}{sklearn's randomForestCI} and wrote my own code.
+All the figures can be reproduced using the code in \href{https://github.com/liangzp/MATH-5472}{this repository}.
 Stefan Wager's code is for R while sklearn's is based on python. 
 However, neither of them implemented Jacknife-after-Bootstrap estimator.
 
@@ -186,6 +215,42 @@ Moreover, as the bootstrap sample sizes increase, the Monte Carlo error decrease
 	\includegraphics[width=0.8\textwidth]{../figures/figure_3.pdf}
 \end{figure}
 
+\subsection{Figure 4}
+In this section we aim to gain some qualitative insight from the infinite jackknife estimator on the random forest.
+From Figure~\ref{fig:figeure4_1} we plot test-set predictions against IJ-U estimates of standard error for all three random forests with maximum number of features as 5, 19 and 57 (which reduce to the bagging version).
+The sample variance increases with the maximum number of select features.
+Thus the $m=57$ forest tends to suffer overfitting under this limited sample size, which hinder it from achieving the best test error amongs them.
+In contrast, the $m=5$ forest has small variance across all samples, which may implies it suffies from bias due to the limited capacity of utiliziing features.
+From Figure~\ref{fig:figeure4_2} we plot the prediction probability of $m=5$ forest versus the difference between prediction probability of $m=19$ against $m=5$.
+To visulize the main trend from the scatters, we interpolate the scatters with a polynomial curve with degree 5 (red line).
+The red line remains negative when prediction is less than $1/2$ and remains positive when prediction is greater than $1/2$, which implies that the $m=19$ forest has more confidence along the correct direction, and further verify the insight gained from the Infinite Jackknife estimator.
+ 
+\begin{figure}[htbp]
+	\centering
+	\begin{minipage}{0.6\textwidth}
+	\label{lab:figeure4_0}
+	\includegraphics[width=1\textwidth]{../figures/figure4(1)0.pdf}
+	\caption{Jacknife-after-Bootstrap}
+	\end{minipage}
+	\begin{minipage}{0.6\textwidth}
+	\label{lab:figeure4_1}
+	\centering	
+	\includegraphics[width=1\textwidth]{../figures/figure4(1)1.pdf}
+	\caption{Infinitesimal Jackknife}
+	\end{minipage}
+	\begin{minipage}{0.6\textwidth}
+	\label{lab:figeure4_2}
+	\centering	
+	\includegraphics[width=1\textwidth]{../figures/figure4(1)2.pdf}
+	\caption{Infinitesimal Jackknife}
+	\end{minipage}
+\end{figure}
+
+\begin{figure}[htbp]
+	\label{fig:figure_4_2}
+	\centering
+	\includegraphics[width=0.8\textwidth]{../figures/figure4(2).pdf}
+\end{figure}
 
 \section{Conclusion}
 

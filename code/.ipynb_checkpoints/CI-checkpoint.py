@@ -178,7 +178,7 @@ def compute_V(forest, X_train, X_test, calibrate=True):
     def _core_computation_J(inbag, pred, bagging_mean, n_samples):
         noinbag = np.where(inbag>0, 0, 1)
         delta_sum = np.dot(noinbag, pred.T)
-        theta_ = delta_sum/np.sum(noinbag, 1)
+        theta_ = delta_sum/np.sum(noinbag, 1).reshape((-1, 1))
         return (n_samples - 1)* np.mean((theta_ - bagging_mean.T)**2, 0)
 
     def _bias_correction_IJ(V_IJ, inbag, pred_centered, n_trees):
