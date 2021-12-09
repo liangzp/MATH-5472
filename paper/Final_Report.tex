@@ -1,0 +1,127 @@
+\documentclass[11pt]{article}
+
+\usepackage[left=1.25in,top=1.25in,right=1.25in,bottom=1.25in,head=1.25in]{geometry}
+\usepackage{amsfonts,amsmath,amssymb,amsthm}
+
+\title{Summary and discussion of: ``Confidence Intervals for Random Forests: The Jackknife and the Infinitesimal Jackknife'' \\
+%% replace wih paper title 
+{\large Journal club report}}
+\author{Zhipeng LIANG}
+%% replace with your names
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Summary}
+\subsection{Bagging and Random Forest}
+Suppose that we have training examples $Z_1 = (x_1, y_1), ..., Z_n = (x_n, y_n)$, the dataset $\mathcal{D}=\{Z_i\}_{i=1}^n$, an input $x$ to a prediction problem, and a base learner $\hat{\theta} = t(x;Z_1, ..., Z_n)$.
+
+For bagging method, we stabilize the base learner $t$ by resampling the training data. 
+The bagging can be viewed as the solution to 
+\begin{equation}
+	\label{eq:bagging}
+	\hat{\theta}^{B}(x)=\frac{1}{B} \sum_{b=1}^{B} t_{b}^{*}(x), \text { where } t_{b}^{*}(x)=t\left(x ; Z_{b 1}^{*}, \ldots, Z_{b n}^{*}\right),
+\end{equation}
+where the $Z^{*}_{bi}$ are the $i$-th elements in the $b$-th bootstrap sample.
+
+Moreover, the random forest constructs trees base on not only bootstrap samples but also random feature selection.
+Thus it can be viewed as the solution to the following problem 
+\begin{equation}
+	\label{eq:random-forest}
+	\hat{\theta}^{R F}(x)=\frac{1}{B} \sum_{b=1}^{B} \frac{1}{K} \sum_{k=1}^{K} t_{b}^{*}\left(x ; \xi_{k b}, Z_{b 1}^{*}, \ldots, Z_{b n}^{*}\right) \text{ with } \xi_{k b} \stackrel{\mathrm{iid}}{\sim} \Xi,
+\end{equation}
+where $\xi_{kb}$ can be viewed as the modeling for the feature selection noise.
+
+
+To be specific, we introduce the generalized bagged version of $\hat{\theta}^{\infty}(x)$ is defined as 
+\begin{equation}
+	\label{eq:bagged-version}
+	\hat{\theta}^{\infty}(x)=\mathbb{E}_{Z_i\sim P_{*}, \xi \sim \Xi}\left[t\left(x; \xi, Z_{1}^{*}, \ldots, Z_{n}^{*}\right)\right],
+\end{equation}
+where $P^{*}$ is the bootstrap distribution and $\Xi$ is the auxiliary noise distribution. 
+Then \eqref{eq:bagging} can be viewed as a Monte Carlo approximation to the bootstrap distribution $P^{*}$ with trivial distribution $\Xi$ while random forest is a Monte Carlo approximation to both the bootstrap distribution $P^{*}$ and nontrivial auxiliary noise distribution.
+
+First, to understand the bootstrap distribution, note that the empirical distribution is \begin{align*}
+	P_{\delta}(x, y)=\frac{1}{n} \sum_{i=1}^{n} \delta\left(x=x_{i}, y=y_{i}\right),
+\end{align*}
+where $\delta(\cdot)$ is the Dirac mass centered at $(x_i, y_i)$.
+Then the bootstrap distribution is \begin{align*}
+	P_{*}(x, y)=\frac{1}{n} \sum_{i=1}^{n} \sum_{k=1}^n k\delta\left(x=x_{i}, y=y_{i}\right) \frac{1}{k!}\exp^{-1}.
+\end{align*}
+The derivation is from the approximation of the poisson distribution with parameter $\lambda=1$ $\operatorname{Poisson}(1)$ to the multinomial distribution $\operatorname{Multi}(n,\frac{1}{n})$ when $n\rightarrow \infty$ since we use Poisson bootstrap here.
+
+
+\subsection{IJ and J estimator}
+The goal of this paper is to study the sampling variance of bagged learners
+\begin{align*}
+	V(x) = \operatorname{Var}(\hat{\theta}^{\infty}(x)).
+\end{align*}
+
+This paper consider two basic estimates of $V(\cdot)$:
+\begin{enumerate}
+	\item The Infinitesimal Jackknife estimate \begin{align*}
+		\widehat{V}_{I J}^{\infty}=\sum_{i=1}^{n} \operatorname{Cov}_{*}\left[N_{i}^{*}, t^{*}(x)\right]^{2}
+	\end{align*}
+	where $\operatorname{Cov}_{∗}[N_i^{*}, t_{∗}(x)]$ is the covariance between $t^{*}(x)$ and the number of times $N_i^{*}$ the $i$-th training example appears in a bootstrap sample. This is the direct application of the Theorem 1 in~\cite{efron2012model}.
+	\item The Jacknife-after-Bootstrap estimate \begin{align*}
+		\widehat{V}_{J}^{\infty}=\frac{n-1}{n} \sum_{i=1}^{n}\left(\bar{t}_{(-i)}^{*}(x)-\bar{t}^{*}(x)\right)^{2}
+	\end{align*}
+	where  $\bar{t}_{(-i)}^{*}(x)$ is the average of $t^{*}(x)$ over all the bootstrap samples not containing the $i$-th example and $\bar{t}^{*}(x)$ is the mean of all the $t^{*}(x)$.
+\end{enumerate}
+
+In practice, we can only ever work with a finite number B of bootstrap replicates. The natural Monte Carlo approximations to the estimators introduced above are
+$$
+\widehat{V}_{I J}^{B}=\sum_{i=1}^{n} \widehat{\operatorname{Cov}}_{i}^{2} \text { with } \widehat{\operatorname{Cov}}_{i}=\frac{\sum_{b}\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)}{B},
+$$
+and
+\begin{align*}
+\widehat{V}_{J}^{B}=\frac{n-1}{n} \sum_{i=1}^{n} \hat{\Delta}_{i}^{2}, 
+\end{align*}
+where 
+\begin{align*}
+	\hat{\Delta}_{i}=\hat{\theta}_{(-i)}^{B}(x)-\hat{\theta}^{B}(x)
+\end{align*}
+and 
+\begin{align*}	
+\hat{\theta}_{(-i)}^{B}(x)=\frac{\sum_{\left\{b: N_{b i}^{*}=0\right\}} t_{b}^{*}(x)}{\left|\left\{N_{b i}^{*}=0\right\}\right|},
+\end{align*}
+where $N_{bi}^{*}$ indicates the number of times the $i$-th observation appears in the bootstrap sample b.
+
+However, these finite-B estimates of variance are often badly biased upwards
+if the number of bootstrap samples B is too small. 
+To correct the bias, we investigate the bias \begin{align*}
+	\mathbb{E}_{*}\left[\widehat{V}_{I J}^{B}\right]-\widehat{V}_{I J}^{\infty}=\sum_{i=1}^{n} \operatorname{Var}_{*}\left[C_{i}\right], \text { where } C_{i}=\frac{\sum_{b}\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}-\bar{t}^{*}\right)}{B}.
+\end{align*}
+
+They use the approximation \begin{align*}
+	\operatorname{Var}_{*}\left[\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}-\bar{t}^{*}\right)\right] \approx \operatorname{Var}_{*}\left[N_{b i}^{*}\right] \operatorname{Var}_{*}\left[t_{b}^{*}\right]
+\end{align*}
+which holds when $t(x;Z_1^{*},Z_2^{*},\cdots,Z_n^{*})=\frac{1}{n}\sum_{i=1}^nZ_i^{*}$ as the mean estimator and Poisson bootstrap.
+To be specific, the approximation error is dominated by the approximated term.
+
+Thus this bias can be approximated as \begin{align*}
+	\mathbb{E}_{*}\left[\widehat{V}_{I J}^{B}\right]-\widehat{V}_{I J}^{\infty}\approx \frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}.
+\end{align*}
+Thus we have the bias-correction version
+\begin{align*}
+&\widehat{V}_{I J-U}^{B}=\widehat{V}_{I J}^{B}-\frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}, 
+\end{align*}
+and 
+\begin{align*}
+&\widehat{V}_{J-U}^{B}=\widehat{V}_{J}^{B}-(e-1) \frac{n}{B^{2}} \sum_{b=1}^{B}\left(t_{b}^{*}(x)-\bar{t}^{*}(x)\right)^{2}.
+\end{align*}
+		
+
+\section{Result and Discussion}
+
+Simulation and read data examples
+
+
+discuss what you find to be interest or important here
+
+\section{Conclusion}
+
+\bibliographystyle{plain} % We choose the "plain" reference style
+\bibliography{ref} % Entries are in the refs.bib file
+\end{document}
