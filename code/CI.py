@@ -1,6 +1,6 @@
+import copy
 import pandas as pd
 import numpy as np
-import copy
 from math import exp
 import functools
 import itertools
@@ -150,20 +150,15 @@ def calibrateEB(variances, sigma2):
 
 def compute_V(forest, X_train, X_test, calibrate=True):
     def _infer_inbag(n_samples, forest):
-        n_trees = forest.n_estimators
-        inbag = np.zeros((n_samples, n_trees))
+        n_estimators = forest.n_estimators
+        inbag = np.zeros((n_samples, n_estimators))
         sample_idx = []
+        # For bagging and forest structure they have different function. Inferring inbag matrix should be finished seperately.
         if isinstance(forest, BaseForest):
             n_samples_bootstrap = _get_n_samples_bootstrap(n_samples, forest.max_samples)
 
-            for t_idx in range(n_trees):
-                sample_idx.append(
-                    _generate_sample_indices(
-                        forest.estimators_[t_idx].random_state,
-                        n_samples,
-                        n_samples_bootstrap,
-                    )
-                )
+            for t_idx in range(n_estimators):
+                sample_idx.append(_generate_sample_indices(forest.estimators_[t_idx].random_state, n_samples,n_samples_bootstrap,))
                 inbag[:, t_idx] = np.bincount(sample_idx[-1], minlength=n_samples)
         elif isinstance(forest, BaseBagging):
             for t_idx, estimator_sample in enumerate(forest.estimators_samples_):
@@ -172,51 +167,55 @@ def compute_V(forest, X_train, X_test, calibrate=True):
 
         return inbag 
 
-    def _core_computation_IJ(inbag, pred_centered, n_trees):
-        return np.sum((np.dot(inbag - 1, pred_centered.T) / n_trees) ** 2, 0) 
+    def _core_computation_IJ(inbag, pred_centered, n_estimators):
+        return np.sum((np.dot(inbag - 1, pred_centered.T) / n_estimators) ** 2, 0) 
     
     def _core_computation_J(inbag, pred, bagging_mean, n_samples):
-        noinbag = np.where(inbag>0, 0, 1)
-        delta_sum = np.dot(noinbag, pred.T)
-        theta_ = delta_sum/np.sum(noinbag, 1).reshape((-1, 1))
+        outbag = np.where(inbag>0, 0, 1)
+        delta_sum = np.dot(outbag, pred.T)
+        theta_ = delta_sum/np.sum(outbag, 1).reshape((-1, 1))
         return (n_samples - 1)* np.mean((theta_ - bagging_mean.T)**2, 0)
 
-    def _bias_correction_IJ(V_IJ, inbag, pred_centered, n_trees):
+    def _bias_correction_IJ(V_IJ, inbag, pred_centered, n_estimators):
         n_train_samples = inbag.shape[0]
         n_var = np.mean(
-            np.square(inbag[0:n_trees]).mean(axis=1).T.view()
-            - np.square(inbag[0:n_trees].mean(axis=1)).T.view()
+            np.square(inbag[0:n_estimators]).mean(axis=1).T.view()
+            - np.square(inbag[0:n_estimators].mean(axis=1)).T.view()
         )
-        boot_var = np.square(pred_centered).sum(axis=1) / n_trees
-        bias_correction = n_train_samples * n_var * boot_var / n_trees
+        t_var = np.square(pred_centered).sum(axis=1) / n_estimators
+        bias_correction = n_train_samples * n_var * t_var / n_estimators
         V_IJ_unbiased = V_IJ - bias_correction
         return V_IJ_unbiased 
     
-    def _bias_correction_J(V_J, inbag, pred_centered, n_trees):
+    def _bias_correction_J(V_J, inbag, pred_centered, n_estimators):
         n_train_samples = inbag.shape[0]
+        # Var[N_{bi}]
         n_var = np.mean(
-            np.square(inbag[0:n_trees]).mean(axis=1).T.view()
-            - np.square(inbag[0:n_trees].mean(axis=1)).T.view()
+            np.square(inbag[0:n_estimators]).mean(axis=1).T.view()
+            - np.square(inbag[0:n_estimators].mean(axis=1)).T.view()
         )
-        boot_var = np.square(pred_centered).sum(axis=1) / n_trees
-        bias_correction = (exp(1) - 1) * n_train_samples * n_var * boot_var / n_trees
+        # Var[t_b^{*}]
+        t_var = np.square(pred_centered).sum(axis=1) / n_estimators
+        bias_correction = (exp(1) - 1) * n_train_samples * n_var * t_var / n_estimators
         V_J_unbiased = V_J - bias_correction
         return V_J_unbiased 
-
+    
+    # infer a inbag matrix with size n*m where the ij-th element represent the occupance of the i-th sample in the j-th bagging
     inbag = _infer_inbag(X_train.shape[0], forest) 
     pred = np.array([tree.predict(X_test) for tree in forest]).T
     pred_mean = np.mean(pred, 0)
     bagging_mean = np.mean(pred, 1)
     pred_centered = pred - pred_mean
-    n_trees = forest.n_estimators
+    n_estimators = forest.n_estimators
     V_J = _core_computation_J(inbag, pred, bagging_mean, X_train.shape[0])
-    V_J_unbiased = _bias_correction_J(V_J, inbag, pred_centered, n_trees)
-    V_IJ = _core_computation_IJ(inbag, pred_centered, n_trees)
-    V_IJ_unbiased = _bias_correction_IJ(V_IJ, inbag, pred_centered, n_trees)
+    V_J_unbiased = _bias_correction_J(V_J, inbag, pred_centered, n_estimators)
+    V_IJ = _core_computation_IJ(inbag, pred_centered, n_estimators)
+    V_IJ_unbiased = _bias_correction_IJ(V_IJ, inbag, pred_centered, n_estimators)
+    
     # calibration
     if calibrate:
         calibration_ratio = 2
-        n_sample = np.ceil(n_trees / calibration_ratio)
+        n_sample = np.ceil(n_estimators / calibration_ratio)
         new_forest = copy.deepcopy(forest)
         random_idx = np.random.permutation(len(new_forest.estimators_))[: int(n_sample)]
         new_forest.estimators_ = list(np.array(new_forest.estimators_)[random_idx])
@@ -234,7 +233,7 @@ def compute_V(forest, X_train, X_test, calibrate=True):
         # to estimate scale of Monte Carlo noise
         sigma2_ss_J = np.mean((results_ss_J_ - V_J_unbiased) ** 2)
         sigma2_ss_IJ = np.mean((results_ss_IJ - V_IJ_unbiased) ** 2)
-        delta = n_sample / n_trees
+        delta = n_sample / n_estimators
         sigma2_J = (delta ** 2 + (1 - delta) ** 2) / (2 * (1 - delta) ** 2) * sigma2_ss_J
         sigma2_IJ = (delta ** 2 + (1 - delta) ** 2) / (2 * (1 - delta) ** 2) * sigma2_ss_IJ
 

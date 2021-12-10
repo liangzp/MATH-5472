@@ -4,18 +4,21 @@
 \usepackage{amsfonts,amsmath,amssymb,amsthm}
 \usepackage{graphicx, hyperref}
 \usepackage{float}
-
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}% http://ctan.org/pkg/algorithms
+\usepackage{algpseudocode}% http://ctan.org/pkg/algorithmicx
 
 \title{Summary and discussion of: ``Confidence Intervals for Random Forests: The Jackknife and the Infinitesimal Jackknife'' \\
 %% replace wih paper title 
-{\large Journal club report}}
+{\large Journal club report}\footnote{The Latex document and the reproduced code can be found in \href{https://github.com/liangzp/MATH-5472}{https://github.com/liangzp/MATH-5472.}}}
 \author{Zhipeng LIANG}
 %% replace with your names
 \date{}
 
 \begin{document}
 \maketitle
-
+\tableofcontents
 \section{Summary}
 \subsection{Bagging and Random Forest}
 Suppose that we have training examples $Z_1 = (x_1, y_1), ..., Z_n = (x_n, y_n)$, the dataset $\mathcal{D}=\{Z_i\}_{i=1}^n$, an input $x$ to a prediction problem, and a base learner $\hat{\theta} = t(x;Z_1, ..., Z_n)$.
@@ -97,6 +100,7 @@ if the number of bootstrap samples B is too small.
 To correct the bias, we investigate the bias \begin{align*}
 	\mathbb{E}_{*}\left[\widehat{V}_{I J}^{B}\right]-\widehat{V}_{I J}^{\infty}=\sum_{i=1}^{n} \operatorname{Var}_{*}\left[C_{i}\right], \text { where } C_{i}=\frac{\sum_{b}\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}-\bar{t}^{*}\right)}{B}.
 \end{align*}
+	where $\bar{t}^{*}(x) = \frac{1}{b}\sum_{j=1}^b t^{*}_b(x)$.
 
 They use the approximation \begin{align*}
 	\operatorname{Var}_{*}\left[\left(N_{b i}^{*}-1\right)\left(t_{b}^{*}-\bar{t}^{*}\right)\right] \approx \operatorname{Var}_{*}\left[N_{b i}^{*}\right] \operatorname{Var}_{*}\left[t_{b}^{*}\right]
@@ -145,17 +149,18 @@ where $h_{F}(Z)=\mathbb{E}_{F}\left[\hat{\theta}^{\infty} \mid Z_{1}=Z\right]-\m
 	\label{eq:IJ-variance}
 	\mathbb{E}_{F}\left[\widehat{V}_{I J}^{\infty}\right] \approx V_{1}.
 \end{equation}
-Compare \eqref{eq:ANOVA}, \eqref{eq:JN-variance} and \eqref{eq:IJ-variance} we can conclude that Jackknife estimator has a upward bias by double the second-order term, triple the third-term and so on while Infinite Jackknife estimator has a downward bias by dropping higher-order terms.
+Compare \eqref{eq:ANOVA}, \eqref{eq:JN-variance} and \eqref{eq:IJ-variance} we can conclude that Jackknife estimator has a upward bias by double the second-order term, triple the third-term and so on while Infinitesimal Jackknife estimator has a downward bias by dropping higher-order terms.
 Thus this paper suggests to use the the arithmetic mean of $\widehat{V}_{J}^{\infty}$ and $\widehat{V}_{IJ}^{\infty}$.
 
 \section{Result and Discussion}
 \subsection{Empirical Bayes Calibration}
-I learnt \href{https://github.com/swager/randomForestCI}{Stefan Wager's randomForestCI} and \href{https://github.com/scikit-learn-contrib/forest-confidence-interval}{sklearn's randomForestCI} and wrote my own code.
-All the figures can be reproduced using the code in \href{https://github.com/liangzp/MATH-5472}{this repository}.
+My implementation is based on \href{https://github.com/swager/randomForestCI}{Stefan Wager's randomForestCI}, \href{https://github.com/imbs-hl/ranger/blob/master/R/infinitesimalJackknife.R}{ranger's implementation of IJ} and \href{https://github.com/scikit-learn-contrib/forest-confidence-interval}{sklearn's randomForestCI}.
+All the figures can be reproduced using the code in \href{https://github.com/liangzp/MATH-5472}{my Github repository}.
 Stefan Wager's code is for R while sklearn's is based on python. 
 However, neither of them implemented Jacknife-after-Bootstrap estimator.
 
-\subsection{Figure 2}
+\subsection{Jacknife-after-Bootstrap v.s. Infinitesimal Jackknife}
+\label{sec:Figure_2}
 In the first experiment I testing the performance of my version of the bias-corrected infinitesimal jackknife estimate of variance for bagged predictors, defined in~\ref{eq:bias-correction-IJ}, on the simulation data.
 The experiment setup is the same as described in the paper while here I only outline some points.
 The data is generaed via $y=f(x)+\epsilon$ where $\epsilon$ is a Gaussian noise and 
@@ -171,29 +176,39 @@ The data is generaed via $y=f(x)+\epsilon$ where $\epsilon$ is a Gaussian noise 
 \end{equation}
 There is a jump of level 7 at four discontinuous points, 0.35, 0.45, 0.55 and 0.65. 
 Thus the ideal variance estimator should capture them.
-As we can see, Figure~\ref{lab:figeure2_IJ} shows that the infinitesimal jackknife estimator of the bagging predictors does achieve it.
-However, in Figure~\ref{lab:figeure2_J} my version of Jacknife-after-Bootstrap estimator although react to the discontinuous points but fail to capture the true variance.
+As we can see, Figure~\ref{fig:figeure2IJ} shows that the infinitesimal jackknife estimator of the bagging predictors does achieve it.
+However, in Figure~\ref{fig:figeure2J} my version of Jacknife-after-Bootstrap estimator although react to the discontinuous points but fail to capture the true variance.
+Then I increase the bagging size to $50000$ and we can see from Figure~\ref{fig:figeure2J_50k} the Jacknife-after-Bootstrap estimator finally capture the true variance, which implies the Jacknife-after-Bootstrap estimator is more vulunerble to the Monte Carlo error.
 
 Before we start to present other experiments, note that both in the originl code by Stefan Wager and sklearn's implementation, the bias-corrected infinitesimal jackknife estimate in~\eqref{eq:bias-correction-IJ} is not directly used.
 Instead, Wager conducted empirical Bayes calibration for the infinitesimal jackknife estimate using the g-modeling in \cite{efron2014two}.
 Without such a empirical Bayes calibration, most of the elements in the  infinitesimal jackknife estimate will be negative in my implementation.
+
+
 \begin{figure}[htbp]
 	\centering
-	\begin{minipage}{.5\textwidth}
-	\label{lab:figeure2_J}
-	\includegraphics[width=1\textwidth]{../figures/figure2_J.pdf}
-	\caption{Jacknife-after-Bootstrap}
-	\end{minipage}%
-	\begin{minipage}{0.5\textwidth}
-	\label{lab:figeure2_IJ}
-	\centering	
+	\begin{subfigure}[b]{0.32\textwidth}
+		\includegraphics[width=1\textwidth]{../figures/figure2_J.pdf}
+	\caption{}
+	\label{fig:figeure2J}
+	\end{subfigure}%
+	\begin{subfigure}[b]{0.32\textwidth}
+		\includegraphics[width=1\textwidth]{../figures/figure2_J_50k.pdf}
+		\caption{}
+		\label{fig:figeure2J_50k}
+	\end{subfigure}%
+	\begin{subfigure}[b]{0.32\textwidth}
+		\centering	
 	\includegraphics[width=1\textwidth]{../figures/figure2_IJ.pdf}
-	\caption{Infinitesimal Jackknife}
-	\end{minipage}
+	\caption{}
+	\label{fig:figeure2IJ}
+	\end{subfigure}
+	\caption{The left figure is Jacknife-after-Bootstrap (Bagging size  = $10000$). The middle one is Jacknife-after-Bootstrap (Bagging size  = $50000$) and the right figure is 
+	Infinitesimal Jackknife.}
 \end{figure}
 
-\subsection{Figure 3}
-In this experiment, I test the advantage of bias-correction version against.
+\subsection{Advantage of Bias-correction}
+In this experiment, I test the advantage of bias-correction version against the vallina one.
 I test their performance on the cholesterol dataset \cite{efron1991compliance}.
 I closely follow the experiment setup in \cite{efron2012model}.
 For completeness I outline some key ingredients here.
@@ -206,43 +221,45 @@ $$
 \hat{\beta}_m = \operatornamewithlimits{argmin}_{\hat{\beta}}\left\|\boldsymbol{y}-X_{m} \hat{\beta}\right\|^{2}.
 $$
 Follows the setup in \cite{efron2012model}, we use the value $\sigma=22$ in this experiments.
-We use the best degree for each bootstrap sample for the final regression model and apply the infinite Jackknife \ref{eq:VIJ-Monte} and bias-correction version \ref{eq:bias-correction-IJ}.
+We use the best degree for each bootstrap sample for the final regression model and apply the Infinitesimal Jackknife \ref{eq:VIJ-Monte} and bias-correction version \ref{eq:bias-correction-IJ}.
 As we can see in Figure~\ref{fig:figure_3}, the bias-correction version (on the right column) is significantly lower than the biased one.
 Moreover, as the bootstrap sample sizes increase, the Monte Carlo error decreases which leads to the closer performance between biased IJ and bias-correction one.
 \begin{figure}[htbp]
-	\label{fig:figure_3}
 	\centering
 	\includegraphics[width=0.8\textwidth]{../figures/figure_3.pdf}
+	\caption{Boxplot of the Variance Estimate of Infinitesimal Jackknife and Bias-corrected Version}
+	\label{fig:figure_3}
 \end{figure}
 
-\subsection{Figure 4}
-In this section we aim to gain some qualitative insight from the infinite jackknife estimator on the random forest.
-From Figure~\ref{fig:figeure4_1} we plot test-set predictions against IJ-U estimates of standard error for all three random forests with maximum number of features as 5, 19 and 57 (which reduce to the bagging version).
+\subsection{Application in Random Forest}
+\label{sec:Figure4}
+In this section we aim to gain some qualitative insight from the Infinitesimal jackknife estimator on the random forest.
+From Figure~\ref{fig:figeure4_0}, \ref{fig:figeure4_1} and \ref{fig:figeure4_2} we plot test-set predictions against IJ-U estimates of standard error for all three random forests with maximum number of features as 5, 19 and 57 (which reduce to the bagging version).
 The sample variance increases with the maximum number of select features.
 Thus the $m=57$ forest tends to suffer overfitting under this limited sample size, which hinder it from achieving the best test error amongs them.
 In contrast, the $m=5$ forest has small variance across all samples, which may implies it suffies from bias due to the limited capacity of utiliziing features.
-From Figure~\ref{fig:figeure4_2} we plot the prediction probability of $m=5$ forest versus the difference between prediction probability of $m=19$ against $m=5$.
+From Figure~\ref{fig:figeure4_2} we plotthe prediction probability of $m=5$ forest versus the difference between prediction probability of $m=19$ against $m=5$.
 To visulize the main trend from the scatters, we interpolate the scatters with a polynomial curve with degree 5 (red line).
-The red line remains negative when prediction is less than $1/2$ and remains positive when prediction is greater than $1/2$, which implies that the $m=19$ forest has more confidence along the correct direction, and further verify the insight gained from the Infinite Jackknife estimator.
- 
+The red line remains negative when prediction is less than $1/2$ and remains positive when prediction is greater than $1/2$, which implies that the $m=19$ forest has more confidence along the correct direction, and further verify the insight gained from the Infinitesimal Jackknife estimator.
+
 \begin{figure}[htbp]
 	\centering
 	\begin{minipage}{0.6\textwidth}
-	\label{lab:figeure4_0}
 	\includegraphics[width=1\textwidth]{../figures/figure4(1)0.pdf}
-	\caption{Jacknife-after-Bootstrap}
+	\caption{Infinitesimal Jackknife ($m=5$)}
+	\label{fig:figeure4_0}
 	\end{minipage}
 	\begin{minipage}{0.6\textwidth}
-	\label{lab:figeure4_1}
 	\centering	
 	\includegraphics[width=1\textwidth]{../figures/figure4(1)1.pdf}
-	\caption{Infinitesimal Jackknife}
+	\caption{Infinitesimal Jackknife ($m=19$)}
+	\label{fig:figeure4_1}
 	\end{minipage}
 	\begin{minipage}{0.6\textwidth}
-	\label{lab:figeure4_2}
 	\centering	
 	\includegraphics[width=1\textwidth]{../figures/figure4(1)2.pdf}
-	\caption{Infinitesimal Jackknife}
+	\caption{Infinitesimal Jackknife ($m=57$)}
+	\label{fig:figeure4_2}
 	\end{minipage}
 \end{figure}
 
@@ -252,8 +269,134 @@ The red line remains negative when prediction is less than $1/2$ and remains pos
 	\includegraphics[width=0.8\textwidth]{../figures/figure4(2).pdf}
 \end{figure}
 
+\subsection{Empirical Bayes Calibration}
+In this section I conduct experiments to show the necessarity of the empirical Bayes calibration.
+First I follows the similar setup in~\ref{sec:Figure_2} and plot the variance estimate before Figure~\ref{fig:Before_Calibration} and after the empirical Bayes calibration Figure~\ref{fig:Calibration}.
+In this experiment I decrease the number of bagging from 10000 which is 20 times the sample size, i.e., $\Theta(n^{1.5})$ as recommended in this paper to 500 which is $\Theta(n)$ where $n$ is the sample size.
+Insufficient bagging number would incur unignorable Monte Carlo error. 
+However, \ref{fig:Before_Calibration} validate the performance of the inifinite Jackknife even before the calibration whose elements are all non-negative and properly capture the jump points of the underlying function.
+Instead, after the calibration, the inifinite Jackknife has  non-zero variance estimate even on the non-jump points and has a upward bias between 0.45 to 0.55 in Figure~\ref{fig:Calibration}.
+I susspect that the noise variance is too small to incur significant Monte Carlo noise and ruin the bias-corrected inifinite Jackknife estimator.
+I increase the variance from $\frac{1}{2^2}$ to $2^2$.
+As shown by Figure~\ref{fig:Before_Calibration_2} and Figure~\ref{fig:Calibration_2}, the variance is significant to ruin bias-corrected inifinite Jackknife estimator but cannot render it to have negative solution.
+Calibrated inifinite Jackknife also fail to capture the variance in this experiment.
+In conclusion, empirical Bayes calibration has no advantage in my simple simulation study.
+
+Next I turn to the real-dataset experiment using the same setup in Section~\ref{sec:Figure4}.
+Figure~\ref{fig:Before_Calibration_Real} is the results before calibration while Figure~\ref{fig:Calibration_Real} is after calibration and both of them are tested using random forest with maximum number of feature as $5$.
+It is easy to find that the variance estimate before calibration has a lot of negative number, which are invalid.
+Instead, after calibration, all the variance estimate becomes positive.
+I also test them under $m=19$ and $m=57$.
+Although the negative number decrease in larger $m$, there is still some negative variance estimate before the calibration.
+Note that now the bagging number $B=\Theta(n)$ which is also the recommended magniture for the Infinitesimal Jackknife, thus the calibration is necessary in this dataset.
+
+Finally we summarize the empirical Bayes calibration algorithm used by Prof. Wager.
+\begin{algorithm}
+\caption{Algorithm}
+\hspace*{\algorithmicindent} \textbf{Input:} to calibrate vector $\boldsymbol{x}$, degree for modeling Gaussian prior $p$, number of bins $b$ and noise level $\sigma^2$. \\
+\hspace*{\algorithmicindent} \textbf{Output:} calibrated vector $\boldsymbol{x}^{\operatorname{c}}$. 
+\begin{algorithmic}
+	\State $x_\mathrm{min} = \min_i X_i - 2*\operatorname{std}(\boldsymbol{X})$, $x_\mathrm{max} = \max_i X_i + 2*\operatorname{std}(\boldsymbol{X})$
+	\State $\boldsymbol{x}_{\mathrm{vals}}$ be a set of size $b$ and takes values uniformly between $x_\mathrm{min}$ and $x_\mathrm{max}$.
+	\State $\boldsymbol{k}$ be the pdf of standard normal distribution evaluated on $x_{\mathrm{vals}}$.
+	\State $\boldsymbol{X}(m)$ be a matrix of size $n\times p$ with the $ij$-element as $X_{i}$ to the power of $j$, i.e., $X_{i}^j$.
+	\State Minimizer a negative likelihood function to derive $\hat{\boldsymbol{\eta}}$ and $g_{r}(\hat{\boldsymbol{\eta}}) = \exp(\boldsymbol{X}(m)\hat{\boldsymbol{\eta}}) = \exp(\sum_{i=1}^p \boldsymbol{X}(m)[:, i]\hat{\eta}_i)$.
+	\State $g(\hat{\boldsymbol{\eta}}) = (1-\epsilon) \frac{g_{r}(\hat{\boldsymbol{\eta}})}{\sum_{i} (g_{r}(\hat{\boldsymbol{\eta}}))_{i}} + \epsilon \textrm{Uniform}[x_\mathrm{min}, x_\mathrm{max}]$.
+	\State Derive the posterior expectation $\boldsymbol{x}^c = \mathbb{E}_{g(\hat{\boldsymbol{\eta}})}[\boldsymbol{x}]$.
+\end{algorithmic}
+\end{algorithm}
+
+The remaining point in this algorithm is the negative likelihood function. 
+Roughly speaking, the negative likelihood approximate the posterior distribution with the discrete distribution generated via $g_{r}(\hat{\boldsymbol{\eta}})$.
+Another point is they use mask in their algorithm to get rid  of the negative points in the approximation to the posterior distribution.
+	
 \section{Conclusion}
+This paper analyze Infinitesimal Jackknife and Jackknife-after-Bootstrap estimator for constructing the confidence interval in bagging and random forest.
+It analyze the Monto Carlo error and propose a bias-correction version for both of them. 
+Finally it recommends to use the the arithmetic mean of the jackknife and IJ estimators from the analysis of direction of the sampling bias.
+Note that the empirical Bayes calibration is essential for the algorithm to work in reality.
+
+\begin{figure}[htbp]
+	\centering
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/Before_Calibration.pdf}
+		\caption{Before Calibration ($\sigma^2 = 1/2^2$)}
+		\label{fig:Before_Calibration}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/Calibration.pdf}
+		\caption{After Calibration ($\sigma^2 = 1/2^2$)}
+		\label{fig:Calibration}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/Before_Calibration_2.pdf}
+		\caption{Before Calibration ($\sigma^2 = 2^2$)}
+		\label{fig:Before_Calibration_2}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/Calibration_2.pdf}
+		\caption{After Calibration ($\sigma^2 = 2^2$)}
+		\label{fig:Calibration_2}
+	\end{subfigure}
+\end{figure}
+
+\begin{figure}[htbp]
+	\centering
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/BC_Real0.pdf}
+		\caption{Before Calibration and $m=5$}
+		\label{fig:Before_Calibration_Real}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/AC_Real0.pdf}
+		\caption{After Calibration and $m=5$}
+		\label{fig:Calibration_Real}
+	\end{subfigure}
+	
+	\bigskip
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/BC_Real1.pdf}
+		\caption{Before Calibration and $m=19$}
+		\label{fig:Before_Calibration_Real_19}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/AC_Real1.pdf}
+		\caption{After Calibration and $m=19$}
+		\label{fig:Calibration_Real_19}
+	\end{subfigure}
+
+	\bigskip
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/BC_Real2.pdf}
+		\caption{Before Calibration and $m=57$}
+		\label{fig:Before_Calibration_Real_57}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[b]{0.48\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{../figures/AC_Real2.pdf}
+		\caption{After Calibration and $m=57$}
+		\label{fig:Calibration_Real_57}
+	\end{subfigure}
+\end{figure}
+
 
 \bibliographystyle{plain} % We choose the "plain" reference style
+
+\newpage
 \bibliography{ref} % Entries are in the refs.bib file
 \end{document}
