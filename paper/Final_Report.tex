@@ -158,6 +158,7 @@ My implementation is based on \href{https://github.com/swager/randomForestCI}{St
 All the figures can be reproduced using the code in \href{https://github.com/liangzp/MATH-5472}{my Github repository}.
 Stefan Wager's code is for R while sklearn's is based on python. 
 However, neither of them implemented Jacknife-after-Bootstrap estimator.
+In my implementation, I modify their algorithm, including to incorporate Jacknife-after-Bootstrap estimator and comparison between calibration or not and bias-correction or not, sand reproduce parts of their experiments.
 
 \subsection{Jacknife-after-Bootstrap v.s. Infinitesimal Jackknife}
 \label{sec:Figure_2}
@@ -290,9 +291,19 @@ I also test them under $m=19$ and $m=57$.
 Although the negative number decrease in larger $m$, there is still some negative variance estimate before the calibration.
 Note that now the bagging number $B=\Theta(n)$ which is also the recommended magniture for the Infinitesimal Jackknife, thus the calibration is necessary in this dataset.
 
-Finally we summarize the empirical Bayes calibration algorithm used by Prof. Wager.
+Finally we summarize the empirical Bayes calibration algorithm used by Prof. Wager. This calibration is based on the following normal hierarchical model: 
+\begin{align*}
+	\hat{V}_{IJ}^B\lvert \boldsymbol{\mu} \sim \mathcal{N}(\mu, \sigma^2), \quad \boldsymbol{\mu}\sim g(\cdot),
+\end{align*}
+where $g(\boldsymbol{\alpha})=\pi_0 U + \pi_1 g_1(\boldsymbol{\alpha})$. $U$ is a uniform distribution on the support set and $g_1$ is a normal distribution.
+They approximate $g_1$ using a exponential distribution family, i.e., $g_1(x;\boldsymbol{\alpha})\propto \exp(\sum_{i=1}^p \alpha_i x^i)$.
+In their implementation, they choose $\pi_0=0.1$ and estimate $\sigma^2$ via Monte Carlo and bootstrap sampling distribution.
+The degree of polyregression for the estimation of $g_1$ $p=5$. 
+I summarize their calibration algorithm in~\ref{alg:Normal-Hierarchical}.
+
 \begin{algorithm}
-\caption{Algorithm}
+\caption{Normal Hierarchical Model}
+\label{alg:Normal-Hierarchical}
 \hspace*{\algorithmicindent} \textbf{Input:} to calibrate vector $\boldsymbol{x}$, degree for modeling Gaussian prior $p$, number of bins $b$ and noise level $\sigma^2$. \\
 \hspace*{\algorithmicindent} \textbf{Output:} calibrated vector $\boldsymbol{x}^{\operatorname{c}}$. 
 \begin{algorithmic}
